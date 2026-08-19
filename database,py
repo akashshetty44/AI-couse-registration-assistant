@@ -1,0 +1,760 @@
+import sqlite3
+from pathlib import Path
+import hashlib
+
+
+DB_PATH = Path(__file__).parent / "course_registration.db"
+
+
+def get_connection():
+
+    connection = sqlite3.connect(
+        DB_PATH,
+        check_same_thread=False
+    )
+
+    connection.row_factory = sqlite3.Row
+
+    return connection
+
+
+def hash_password(password):
+
+    return hashlib.sha256(
+        password.encode()
+    ).hexdigest()
+
+
+def init_database():
+
+    connection = get_connection()
+
+    cursor = connection.cursor()
+
+    # -----------------------------
+    # STUDENTS
+    # -----------------------------
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS students (
+            student_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            email TEXT,
+            program TEXT,
+            semester INTEGER,
+            cgpa REAL,
+            completed_credits INTEGER DEFAULT 0,
+            max_credits INTEGER DEFAULT 24,
+            password TEXT
+        )
+        """
+    )
+
+    # -----------------------------
+    # COURSES
+    # -----------------------------
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS courses (
+            course_code TEXT PRIMARY KEY,
+            course_name TEXT NOT NULL,
+            department TEXT,
+            credits INTEGER NOT NULL,
+            semester INTEGER,
+            capacity INTEGER DEFAULT 60,
+            enrolled INTEGER DEFAULT 0,
+            description TEXT,
+            days TEXT,
+            start_time TEXT,
+            end_time TEXT
+        )
+        """
+    )
+
+    # -----------------------------
+    # PREREQUISITES
+    # -----------------------------
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS prerequisites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            course_code TEXT,
+            prerequisite_code TEXT,
+            minimum_grade TEXT DEFAULT 'C'
+        )
+        """
+    )
+
+    # -----------------------------
+    # COMPLETED COURSES
+    # -----------------------------
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS completed_courses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id TEXT,
+            course_code TEXT,
+            grade TEXT
+        )
+        """
+    )
+
+    # -----------------------------
+    # REGISTRATIONS
+    # -----------------------------
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS registrations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id TEXT,
+            course_code TEXT,
+            registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            status TEXT DEFAULT 'Registered'
+        )
+        """
+    )
+
+    # ==================================================
+    # SAMPLE STUDENTS
+    # ==================================================
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM students"
+    )
+
+    if cursor.fetchone()[0] == 0:
+
+        students = [
+
+            (
+                "STU001",
+                "Ameesha",
+                "ameesha@example.com",
+                "Computer Science",
+                6,
+                8.4,
+                96,
+                24,
+                hash_password("1234")
+            ),
+
+            (
+                "STU002",
+                "Rahul",
+                "rahul@example.com",
+                "Information Science",
+                5,
+                7.8,
+                82,
+                24,
+                hash_password("1234")
+            )
+        ]
+
+        cursor.executemany(
+            """
+            INSERT INTO students
+            (
+                student_id,
+                name,
+                email,
+                program,
+                semester,
+                cgpa,
+                completed_credits,
+                max_credits,
+                password
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            students
+        )
+
+    # ==================================================
+    # SAMPLE COURSES
+    # ==================================================
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM courses"
+    )
+
+    if cursor.fetchone()[0] == 0:
+
+        courses = [
+
+            (
+                "CS101",
+                "Programming Fundamentals",
+                "Computer Science",
+                4,
+                1,
+                100,
+                65,
+                "Introduction to programming using Python and basic programming concepts.",
+                "Mon,Wed",
+                "09:00",
+                "10:00"
+            ),
+
+            (
+                "CS201",
+                "Data Structures",
+                "Computer Science",
+                4,
+                3,
+                80,
+                50,
+                "Arrays, linked lists, stacks, queues, trees and graphs.",
+                "Tue,Thu",
+                "10:00",
+                "11:00"
+            ),
+
+            (
+                "CS202",
+                "Database Management Systems",
+                "Computer Science",
+                4,
+                4,
+                80,
+                55,
+                "Relational databases, SQL, normalization and transactions.",
+                "Mon,Wed",
+                "11:00",
+                "12:00"
+            ),
+
+            (
+                "CS301",
+                "Operating Systems",
+                "Computer Science",
+                4,
+                5,
+                70,
+                45,
+                "Processes, threads, scheduling, memory management and file systems.",
+                "Tue,Thu",
+                "09:00",
+                "10:00"
+            ),
+
+            (
+                "CS302",
+                "Computer Networks",
+                "Computer Science",
+                4,
+                5,
+                70,
+                42,
+                "Computer networking, TCP/IP, routing and network security.",
+                "Mon,Wed",
+                "14:00",
+                "15:00"
+            ),
+
+            (
+                "CS401",
+                "Machine Learning",
+                "Computer Science",
+                4,
+                6,
+                60,
+                42,
+                "Machine learning algorithms, supervised learning and model evaluation.",
+                "Tue,Thu",
+                "13:00",
+                "14:00"
+            ),
+
+            (
+                "CS402",
+                "Artificial Intelligence",
+                "Computer Science",
+                4,
+                6,
+                60,
+                38,
+                "Search algorithms, knowledge representation, reasoning and AI techniques.",
+                "Mon,Wed",
+                "15:00",
+                "16:00"
+            ),
+
+            (
+                "CS403",
+                "Cloud Computing",
+                "Computer Science",
+                3,
+                6,
+                60,
+                30,
+                "Cloud architecture, virtualization, containers and cloud services.",
+                "Tue,Thu",
+                "15:00",
+                "16:00"
+            ),
+
+            (
+                "CS404",
+                "Cyber Security",
+                "Computer Science",
+                3,
+                6,
+                50,
+                25,
+                "Cybersecurity principles, threats, cryptography and secure systems.",
+                "Fri",
+                "10:00",
+                "12:00"
+            ),
+
+            (
+                "CS405",
+                "Natural Language Processing",
+                "Computer Science",
+                3,
+                6,
+                50,
+                20,
+                "Text processing, tokenization, embeddings and NLP applications.",
+                "Fri",
+                "13:00",
+                "15:00"
+            )
+        ]
+
+        cursor.executemany(
+            """
+            INSERT INTO courses
+            (
+                course_code,
+                course_name,
+                department,
+                credits,
+                semester,
+                capacity,
+                enrolled,
+                description,
+                days,
+                start_time,
+                end_time
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            courses
+        )
+
+    # ==================================================
+    # PREREQUISITES
+    # ==================================================
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM prerequisites"
+    )
+
+    if cursor.fetchone()[0] == 0:
+
+        prerequisites = [
+
+            ("CS201", "CS101", "C"),
+
+            ("CS202", "CS101", "C"),
+
+            ("CS301", "CS201", "C"),
+
+            ("CS302", "CS201", "C"),
+
+            ("CS401", "CS201", "C"),
+
+            ("CS401", "CS202", "C"),
+
+            ("CS402", "CS201", "C"),
+
+            ("CS403", "CS202", "C"),
+
+            ("CS404", "CS201", "C"),
+
+            ("CS405", "CS202", "C")
+        ]
+
+        cursor.executemany(
+            """
+            INSERT INTO prerequisites
+            (
+                course_code,
+                prerequisite_code,
+                minimum_grade
+            )
+            VALUES (?, ?, ?)
+            """,
+            prerequisites
+        )
+
+    # ==================================================
+    # COMPLETED COURSES
+    # ==================================================
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM completed_courses"
+    )
+
+    if cursor.fetchone()[0] == 0:
+
+        completed = [
+
+            ("STU001", "CS101", "A"),
+            ("STU001", "CS201", "A"),
+            ("STU001", "CS202", "B"),
+            ("STU001", "CS301", "A"),
+            ("STU001", "CS302", "B"),
+
+            ("STU002", "CS101", "B"),
+            ("STU002", "CS201", "B"),
+            ("STU002", "CS202", "C")
+        ]
+
+        cursor.executemany(
+            """
+            INSERT INTO completed_courses
+            (
+                student_id,
+                course_code,
+                grade
+            )
+            VALUES (?, ?, ?)
+            """,
+            completed
+        )
+
+    connection.commit()
+
+    connection.close()
+
+
+# ==================================================
+# DATABASE FUNCTIONS
+# ==================================================
+
+def get_student(student_id):
+
+    connection = get_connection()
+
+    row = connection.execute(
+        """
+        SELECT *
+        FROM students
+        WHERE student_id = ?
+        """,
+        (student_id,)
+    ).fetchone()
+
+    connection.close()
+
+    return row
+
+
+def get_all_courses():
+
+    connection = get_connection()
+
+    rows = connection.execute(
+        """
+        SELECT *
+        FROM courses
+        ORDER BY course_code
+        """
+    ).fetchall()
+
+    connection.close()
+
+    return rows
+
+
+def get_course(course_code):
+
+    connection = get_connection()
+
+    row = connection.execute(
+        """
+        SELECT *
+        FROM courses
+        WHERE course_code = ?
+        """,
+        (course_code,)
+    ).fetchone()
+
+    connection.close()
+
+    return row
+
+
+def get_prerequisites(course_code):
+
+    connection = get_connection()
+
+    rows = connection.execute(
+        """
+        SELECT
+            p.prerequisite_code,
+            p.minimum_grade,
+            c.course_name
+
+        FROM prerequisites p
+
+        JOIN courses c
+        ON p.prerequisite_code = c.course_code
+
+        WHERE p.course_code = ?
+        """,
+        (course_code,)
+    ).fetchall()
+
+    connection.close()
+
+    return rows
+
+
+def get_completed_courses(student_id):
+
+    connection = get_connection()
+
+    rows = connection.execute(
+        """
+        SELECT
+            cc.course_code,
+            c.course_name,
+            cc.grade,
+            c.credits
+
+        FROM completed_courses cc
+
+        JOIN courses c
+        ON cc.course_code = c.course_code
+
+        WHERE cc.student_id = ?
+
+        ORDER BY cc.course_code
+        """,
+        (student_id,)
+    ).fetchall()
+
+    connection.close()
+
+    return rows
+
+
+def get_registered_courses(student_id):
+
+    connection = get_connection()
+
+    rows = connection.execute(
+        """
+        SELECT
+            r.id,
+            r.course_code,
+            c.course_name,
+            c.credits,
+            c.days,
+            c.start_time,
+            c.end_time,
+            r.registration_date,
+            r.status
+
+        FROM registrations r
+
+        JOIN courses c
+        ON r.course_code = c.course_code
+
+        WHERE
+            r.student_id = ?
+            AND r.status = 'Registered'
+
+        ORDER BY c.course_code
+        """,
+        (student_id,)
+    ).fetchall()
+
+    connection.close()
+
+    return rows
+
+
+def add_registration(
+    student_id,
+    course_code
+):
+
+    connection = get_connection()
+
+    cursor = connection.cursor()
+
+    cursor.execute(
+        """
+        INSERT INTO registrations
+        (
+            student_id,
+            course_code,
+            status
+        )
+        VALUES (?, ?, 'Registered')
+        """,
+        (
+            student_id,
+            course_code
+        )
+    )
+
+    cursor.execute(
+        """
+        UPDATE courses
+        SET enrolled = enrolled + 1
+        WHERE course_code = ?
+        """,
+        (course_code,)
+    )
+
+    connection.commit()
+
+    registration_id = cursor.lastrowid
+
+    connection.close()
+
+    return registration_id
+
+
+def remove_registration(
+    student_id,
+    course_code
+):
+
+    connection = get_connection()
+
+    cursor = connection.cursor()
+
+    cursor.execute(
+        """
+        UPDATE registrations
+
+        SET status = 'Dropped'
+
+        WHERE
+            student_id = ?
+            AND course_code = ?
+            AND status = 'Registered'
+        """,
+        (
+            student_id,
+            course_code
+        )
+    )
+
+    cursor.execute(
+        """
+        UPDATE courses
+
+        SET enrolled =
+            CASE
+                WHEN enrolled > 0
+                THEN enrolled - 1
+                ELSE 0
+            END
+
+        WHERE course_code = ?
+        """,
+        (course_code,)
+    )
+
+    connection.commit()
+
+    connection.close()
+
+
+def course_exists_in_registration(
+    student_id,
+    course_code
+):
+
+    connection = get_connection()
+
+    count = connection.execute(
+        """
+        SELECT COUNT(*)
+
+        FROM registrations
+
+        WHERE
+            student_id = ?
+            AND course_code = ?
+            AND status = 'Registered'
+        """,
+        (
+            student_id,
+            course_code
+        )
+    ).fetchone()[0]
+
+    connection.close()
+
+    return count > 0
+
+
+def add_course(
+    course_code,
+    course_name,
+    department,
+    credits,
+    semester,
+    capacity,
+    description,
+    days,
+    start_time,
+    end_time
+):
+
+    connection = get_connection()
+
+    connection.execute(
+        """
+        INSERT INTO courses
+        (
+            course_code,
+            course_name,
+            department,
+            credits,
+            semester,
+            capacity,
+            enrolled,
+            description,
+            days,
+            start_time,
+            end_time
+        )
+
+        VALUES
+        (
+            ?, ?, ?, ?, ?, ?,
+            0, ?, ?, ?, ?
+        )
+        """,
+        (
+            course_code,
+            course_name,
+            department,
+            credits,
+            semester,
+            capacity,
+            description,
+            days,
+            start_time,
+            end_time
+        )
+    )
+
+    connection.commit()
+
+    connection.close()
